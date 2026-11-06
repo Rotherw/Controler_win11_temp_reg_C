@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CoolWatch.App/CoolWatch.App.csproj" />
+    <Project Path="src/CoolWatch.Core/CoolWatch.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CoolWatch.Tests/CoolWatch.Tests.csproj" />
+  </Folder>
+</Solution>
