@@ -88,4 +88,50 @@ public class CoreTests
         var list = m.List();
         Assert.DoesNotContain(list, x => x.Id == Environment.ProcessId);
     }
+
+    [Fact]
+    public void PowerPlans_ParsesPolishAndEnglishOutput()
+    {
+        var text = "Istniejące schematy zasilania (* Aktywne)\n-----\n" +
+            "GUID schematu zasilania: 381b4222-f694-41f0-9685-ff5bb260df2e  (Zrównoważony) *\n" +
+            "GUID schematu zasilania: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Wysoka wydajność)\n" +
+            "Power Scheme GUID: a1841308-3541-4fab-bc81-f71556f20b4a  (Power saver)\n";
+        var plans = PowerPlans.Parse(text);
+        Assert.Equal(3, plans.Count);
+        Assert.Equal("Zrównoważony", plans[0].Name);
+        Assert.True(plans[0].Active);
+        Assert.False(plans[1].Active);
+        Assert.Equal("Power saver", plans[2].Name);
+    }
+
+    [Fact]
+    public void PowerPlans_IgnoresGarbage() => Assert.Empty(PowerPlans.Parse("nic tu nie ma\nGUID bez nawiasów"));
+
+    [Fact]
+    public void History_KeepsOnlyLastN()
+    {
+        var h = new History(3);
+        for (int i = 1; i <= 5; i++) h.Add(i);
+        Assert.Equal(new double[] { 3, 4, 5 }, h.Values);
+    }
+
+    [Theory]
+    [InlineData(@"C:\Windows\System32\notepad.exe", true)]
+    [InlineData(@"c:\windows\explorer.exe", true)]
+    [InlineData(@"C:\Program Files\Windows Defender\MsMpEng.exe", true)]
+    [InlineData(null, true)]
+    [InlineData(@"C:\Users\Jan\app\tool.exe", false)]
+    [InlineData(@"C:\WindowsApps\tool.exe", false)]
+    public void ProtectedPath_IsFailClosed(string? path, bool expected) =>
+        Assert.Equal(expected, ProcessManager.IsProtectedPath(path, @"C:\Windows"));
+
+    [Fact]
+    public void Kill_RefusesWhenStartTimeDiffers()
+    {
+        using var p = OperatingSystem.IsWindows()
+            ? System.Diagnostics.Process.Start("ping", "-n 60 127.0.0.1")!
+            : System.Diagnostics.Process.Start("sleep", "60")!;
+        try { Assert.False(ProcessManager.Kill(p.Id, p.StartTime.AddMinutes(-5))); }
+        finally { p.Kill(); }
+    }
 }

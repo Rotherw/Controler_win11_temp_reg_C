@@ -13,7 +13,12 @@
             </DockPanel>
             <TextBlock x:Name="CpuTemp" Text="--°C" FontSize="40" FontWeight="Bold" Margin="0,6,0,0"/>
             <TextBlock Text="Temperatura procesora" Foreground="#AAA" FontSize="11"/>
+            <Canvas x:Name="Graph" Height="50" Margin="0,6,0,0" Background="#22FFFFFF" ClipToBounds="True"/>
+            <TextBlock Text="Wykres temperatury CPU (ostatnie ~2 min, skala 30–100°C)" FontSize="9" Foreground="#888"/>
             <TextBlock x:Name="Details" Margin="0,8,0,0" TextWrapping="Wrap"/>
+            <TextBlock x:Name="SysInfo" Margin="0,6,0,0" TextWrapping="Wrap" FontSize="11" Foreground="#CCC"/>
+            <TextBlock Text="Plan zasilania:" Margin="0,10,0,2" FontSize="11" Foreground="#CCC"/>
+            <ComboBox x:Name="PlanBox" DisplayMemberPath="Name" SelectionChanged="Plan_Changed"/>
 
             <TextBlock Text="Limit procesora (mniej = chłodniej):" Margin="0,12,0,2" FontSize="11" Foreground="#CCC"/>
             <DockPanel>

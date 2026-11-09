@@ -5,12 +5,23 @@ namespace CoolWatch.Core;
 
 public record FanInfo(string Name, float Rpm, bool Controllable);
 
-public record Snapshot(float? CpuTempC, float? CpuLoad, float? GpuTempC, IReadOnlyList<FanInfo> Fans);
+public record DiskInfo(string Name, float? UsedPercent, float? TempC);
+
+public record Snapshot(float? CpuTempC, float? CpuLoad, float? GpuTempC, IReadOnlyList<FanInfo> Fans)
+{
+    public float? RamUsedPercent { get; init; }
+    public float? RamUsedGb { get; init; }
+    public float? RamTotalGb { get; init; }
+    public IReadOnlyList<DiskInfo> Disks { get; init; } = Array.Empty<DiskInfo>();
+    public float? NetDownKBps { get; init; }
+    public float? NetUpKBps { get; init; }
+}
 
 /// <summary>Odczyt temperatur, obciążenia i wentylatorów przez LibreHardwareMonitor (wymaga uprawnień administratora).</summary>
 public sealed class HardwareMonitor : IDisposable
 {
-    readonly Computer _pc = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true };
+    readonly Computer _pc = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true,
+        IsMemoryEnabled = true, IsStorageEnabled = true, IsNetworkEnabled = true };
 
     public HardwareMonitor() => _pc.Open();
 
@@ -26,7 +37,40 @@ public sealed class HardwareMonitor : IDisposable
             CpuTemp(cpu),
             cpu.SelectMany(h => h.Sensors).FirstOrDefault(s => s.SensorType == SensorType.Load && s.Name == "CPU Total")?.Value,
             gpu.SelectMany(h => h.Sensors).FirstOrDefault(s => s.SensorType == SensorType.Temperature && s.Value.HasValue)?.Value,
-            Fans(all));
+            Fans(all))
+        {
+            RamUsedPercent = Sensor(all, HardwareType.Memory, SensorType.Load, "Memory"),
+            RamUsedGb = Sensor(all, HardwareType.Memory, SensorType.Data, "Memory Used"),
+            RamTotalGb = SumRam(all),
+            Disks = Disks(all),
+            NetDownKBps = NetSum(all, "Download Speed"),
+            NetUpKBps = NetSum(all, "Upload Speed"),
+        };
+    }
+
+    static float? Sensor(List<IHardware> all, HardwareType type, SensorType st, string name) =>
+        all.Where(h => h.HardwareType == type).SelectMany(h => h.Sensors)
+           .FirstOrDefault(s => s.SensorType == st && s.Name == name)?.Value;
+
+    static float? SumRam(List<IHardware> all)
+    {
+        var used = Sensor(all, HardwareType.Memory, SensorType.Data, "Memory Used");
+        var free = Sensor(all, HardwareType.Memory, SensorType.Data, "Memory Available");
+        return used.HasValue && free.HasValue ? used + free : null;
+    }
+
+    static List<DiskInfo> Disks(List<IHardware> all) =>
+        all.Where(h => h.HardwareType == HardwareType.Storage).Select(h => new DiskInfo(
+            h.Name,
+            h.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Load && s.Name == "Used Space")?.Value,
+            h.Sensors.FirstOrDefault(s => s.SensorType == SensorType.Temperature && s.Value.HasValue)?.Value)).ToList();
+
+    // Throughput LibreHardwareMonitor jest w B/s; sumujemy wszystkie karty sieciowe.
+    static float? NetSum(List<IHardware> all, string name)
+    {
+        var vals = all.Where(h => h.HardwareType == HardwareType.Network).SelectMany(h => h.Sensors)
+            .Where(s => s.SensorType == SensorType.Throughput && s.Name == name && s.Value.HasValue).Select(s => s.Value!.Value).ToList();
+        return vals.Count == 0 ? null : vals.Sum() / 1024f;
     }
 
     static void Collect(IHardware h, List<IHardware> acc)

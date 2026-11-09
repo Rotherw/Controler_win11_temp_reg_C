@@ -22,9 +22,44 @@ public partial class MainWindow : Window
         InitializeComponent();
         try { _hw = new HardwareMonitor(); }
         catch (Exception ex) { Info.Text = "Brak dostępu do czujników: " + ex.Message; }
+        LoadPlans();
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
         Tick();
+    }
+
+    readonly History _tempHistory = new(60);
+    bool _loadingPlans;
+
+    void LoadPlans()
+    {
+        _loadingPlans = true;
+        var plans = PowerPlans.List();
+        PlanBox.ItemsSource = plans;
+        PlanBox.SelectedItem = plans.FirstOrDefault(p => p.Active);
+        _loadingPlans = false;
+    }
+
+    void Plan_Changed(object s, SelectionChangedEventArgs e)
+    {
+        if (_loadingPlans || PlanBox.SelectedItem is not PowerPlan plan) return;
+        Info.Text = PowerPlans.SetActive(plan.Id) ? $"Plan zasilania: {plan.Name}." : "Nie udało się zmienić planu zasilania.";
+    }
+
+    void DrawGraph()
+    {
+        Graph.Children.Clear();
+        var v = _tempHistory.Values;
+        if (v.Count < 2) return;
+        double w = Graph.ActualWidth > 0 ? Graph.ActualWidth : 230, h = Graph.Height;
+        var line = new System.Windows.Shapes.Polyline { Stroke = Brushes.Orange, StrokeThickness = 1.5 };
+        for (int i = 0; i < v.Count; i++)
+        {
+            double x = w * i / 59.0;
+            double y = h - Math.Clamp((v[i] - 30) / 70.0, 0, 1) * h;
+            line.Points.Add(new Point(x, y));
+        }
+        Graph.Children.Add(line);
     }
 
     void Drag(object s, MouseButtonEventArgs e)
@@ -48,6 +83,13 @@ public partial class MainWindow : Window
                 if (AutoBox.IsChecked == true && _auto.Evaluate(t, _limit) is int limit) SetLimit(limit, true);
             }
             else CpuTemp.Text = "--°C";
+            if (snap.CpuTempC is float tt) { _tempHistory.Add(tt); DrawGraph(); }
+
+            var disks = string.Join("\n", snap.Disks.Select(d =>
+                $"Dysk {d.Name}: {(d.UsedPercent is float u ? $"{u:0}% zajęte" : "?")}{(d.TempC is float dt ? $", {dt:0}°C" : "")}"));
+            SysInfo.Text = (snap.RamUsedPercent is float rp
+                    ? $"RAM: {rp:0}% ({snap.RamUsedGb:0.0}/{snap.RamTotalGb:0.0} GB)\n" : "") +
+                (snap.NetDownKBps is float nd ? $"Sieć: ↓ {nd:0} KB/s  ↑ {snap.NetUpKBps ?? 0:0} KB/s\n" : "") + disks;
 
             Details.Text = $"Obciążenie CPU: {(snap.CpuLoad is float l ? $"{l:0}%" : "brak")}\n" +
                            $"Temperatura GPU: {(snap.GpuTempC is float g ? $"{g:0}°C" : "brak")}" +
@@ -114,7 +156,7 @@ public partial class MainWindow : Window
             $"Zakończyć „{p.Name}”?\nNiezapisane dane w tym programie mogą zostać utracone.",
             "CoolWatch", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (ask != MessageBoxResult.Yes) return;
-        Info.Text = ProcessManager.Kill(p.Id) ? $"Zakończono: {p.Name}." : $"Nie udało się zakończyć: {p.Name}.";
+        Info.Text = ProcessManager.Kill(p.Id, p.StartTime) ? $"Zakończono: {p.Name}." : $"Nie udało się zakończyć: {p.Name}.";
         RefreshProcs();
     }
 
