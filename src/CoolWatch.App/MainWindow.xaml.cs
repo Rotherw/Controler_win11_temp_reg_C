@@ -67,6 +67,57 @@ public partial class MainWindow : Window
         else if (fromAuto) Info.Text = $"Auto-chłodzenie: limit {_limit}%.";
     }
 
+    readonly ProcessManager _procs = new();
+    readonly DispatcherTimer _procTimer = new() { Interval = TimeSpan.FromSeconds(4) };
+    bool _procTimerHooked;
+
+    void Proc_Expanded(object s, RoutedEventArgs e)
+    {
+        if (!_procTimerHooked) { _procTimer.Tick += (_, _) => RefreshProcs(); _procTimerHooked = true; }
+        _procs.List(); // pierwszy odczyt ustawia punkt odniesienia dla CPU
+        RefreshProcs();
+        _procTimer.Start();
+    }
+
+    void Proc_Collapsed(object s, RoutedEventArgs e) => _procTimer.Stop();
+
+    void ProcRefresh_Click(object s, RoutedEventArgs e) => RefreshProcs();
+
+    void RefreshProcs()
+    {
+        ProcList.Children.Clear();
+        foreach (var p in _procs.List().Take(25))
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+            var btn = new Button
+            {
+                Content = "Zakończ", Padding = new Thickness(6, 0, 6, 0), Margin = new Thickness(6, 0, 0, 0),
+                IsEnabled = !p.Protected, ToolTip = p.Protected ? "Proces systemowy – zablokowany" : "Zakończ proces",
+            };
+            DockPanel.SetDock(btn, Dock.Right);
+            var info = p;
+            btn.Click += (_, _) => KillProc(info);
+            row.Children.Add(btn);
+            row.Children.Add(new TextBlock
+            {
+                Text = $"{p.Name}  {p.CpuPercent:0}% CPU · {p.MemoryMb:0} MB",
+                FontSize = 11, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                Foreground = p.Protected ? Brushes.Gray : Brushes.White,
+            });
+            ProcList.Children.Add(row);
+        }
+    }
+
+    void KillProc(ProcInfo p)
+    {
+        var ask = MessageBox.Show(this,
+            $"Zakończyć „{p.Name}”?\nNiezapisane dane w tym programie mogą zostać utracone.",
+            "CoolWatch", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (ask != MessageBoxResult.Yes) return;
+        Info.Text = ProcessManager.Kill(p.Id) ? $"Zakończono: {p.Name}." : $"Nie udało się zakończyć: {p.Name}.";
+        RefreshProcs();
+    }
+
     void Max_Changed(object s, RoutedEventArgs e)
     {
         if (_hw == null) return;
@@ -117,6 +168,7 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _timer.Stop();
+        _procTimer.Stop();
         if (_auto.Active) CpuLimiter.Apply(CpuLimiter.Max);
         if (MaxBox.IsChecked == true) { CpuLimiter.SetActiveCooling(false); _hw?.SetAllFans(false); }
         foreach (var f in _touchedFans) _hw?.SetFan(f, null);

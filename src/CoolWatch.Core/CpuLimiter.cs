@@ -7,6 +7,9 @@ public static class CpuLimiter
 {
     public const int Min = 50, Max = 100;
 
+    // Pełna ścieżka, żeby nie uruchomić podstawionego powercfg z PATH ani z bieżącego folderu.
+    static readonly string PowercfgPath = Path.Combine(Environment.SystemDirectory, "powercfg.exe");
+
     public static int Clamp(int percent) => Math.Clamp(percent, Min, Max);
 
     public static IReadOnlyList<string> BuildCommands(int percent)
@@ -40,7 +43,7 @@ public static class CpuLimiter
     {
         foreach (var args in commands)
         {
-            using var proc = Process.Start(new ProcessStartInfo("powercfg", args)
+            using var proc = Process.Start(new ProcessStartInfo(PowercfgPath, args)
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,

@@ -14,3 +14,8 @@ Mały, przeciągany widget na pulpit Windows 11, zawsze na wierzchu. Pomaga piln
 - Program wymaga uprawnień administratora (odczyt czujników).
 - Limit procesora zostaje ustawiony także po zamknięciu programu (poza trybem auto-chłodzenia) – przywróć 100% suwakiem, jeśli nie jest potrzebny.
 - Instalator buduje GitHub Actions: pobierz `CoolWatch-Setup.exe` z zakładki Releases.
+
+## Procesy w tle
+Rozwijany panel „Procesy w tle” pokazuje programy bieżącej sesji z obciążeniem CPU i pamięcią (najbardziej obciążające na górze).
+Przycisk **Zakończ** (po potwierdzeniu) wyłącza program wraz z procesami potomnymi. Procesy systemowe (explorer, dwm, svchost, antywirus itp.)
+są zablokowane, żeby nie zawiesić Windowsa. Niezapisane dane w zakończonym programie przepadają.

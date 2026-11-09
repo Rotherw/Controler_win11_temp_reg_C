@@ -47,4 +47,45 @@ public class CoreTests
         Assert.Contains(expected, c[1]);
         Assert.Equal("/setactive SCHEME_CURRENT", c[2]);
     }
+
+    [Theory]
+    [InlineData("explorer", true)]
+    [InlineData("DWM", true)]
+    [InlineData("svchost", true)]
+    [InlineData("chrome", false)]
+    public void ProtectsSystemProcesses(string name, bool expected) =>
+        Assert.Equal(expected, ProcessManager.IsProtected(name));
+
+    [Fact]
+    public void CpuPercent_ScalesByCoresAndClamps()
+    {
+        Assert.Equal(25, ProcessManager.CpuPercent(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2), 4), 3);
+        Assert.Equal(100, ProcessManager.CpuPercent(TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(1), 4));
+        Assert.Equal(0, ProcessManager.CpuPercent(TimeSpan.FromSeconds(1), TimeSpan.Zero, 4));
+    }
+
+    [Fact]
+    public void Kill_RefusesProtectedAndSelf()
+    {
+        Assert.False(ProcessManager.Kill(Environment.ProcessId));
+        Assert.False(ProcessManager.Kill(int.MaxValue));
+    }
+
+    [Fact]
+    public void Kill_TerminatesNormalProcess()
+    {
+        using var p = OperatingSystem.IsWindows()
+            ? System.Diagnostics.Process.Start("ping", "-n 60 127.0.0.1")!
+            : System.Diagnostics.Process.Start("sleep", "60")!;
+        Assert.True(ProcessManager.Kill(p.Id));
+    }
+
+    [Fact]
+    public void List_ExcludesSelf_AndSecondReadGivesValues()
+    {
+        var m = new ProcessManager();
+        m.List();
+        var list = m.List();
+        Assert.DoesNotContain(list, x => x.Id == Environment.ProcessId);
+    }
 }

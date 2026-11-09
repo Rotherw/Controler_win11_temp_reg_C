@@ -26,6 +26,16 @@
                           ToolTip="Aktywna polityka chłodzenia Windows + wentylatory na 100% (jeśli laptop pozwala)"/>
             <CheckBox x:Name="AutoBox" Content="Auto-chłodzenie (limit 70% po 85°C)" Foreground="White" Margin="0,8,0,0" FontSize="11"/>
 
+            <Expander x:Name="ProcExpander" Header="Procesy w tle" Foreground="White" Margin="0,10,0,0"
+                      Expanded="Proc_Expanded" Collapsed="Proc_Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Zakończ programy, których już nie użyjesz w tej sesji (najbardziej obciążające na górze):" FontSize="10" Foreground="#AAA" TextWrapping="Wrap" Margin="0,4,0,4"/>
+                    <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="ProcList"/>
+                    </ScrollViewer>
+                    <Button Content="Odśwież listę" Click="ProcRefresh_Click" Margin="0,6,0,0" Padding="6,2" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </Expander>
             <StackPanel x:Name="FanPanel" Margin="0,10,0,0"/>
             <TextBlock x:Name="Info" Foreground="#E0A040" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
         </StackPanel>
