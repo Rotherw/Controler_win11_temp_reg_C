@@ -67,6 +67,18 @@ public partial class MainWindow : Window
         else if (fromAuto) Info.Text = $"Auto-chłodzenie: limit {_limit}%.";
     }
 
+    void Max_Changed(object s, RoutedEventArgs e)
+    {
+        if (_hw == null) return;
+        bool on = MaxBox.IsChecked == true;
+        bool policy = CpuLimiter.SetActiveCooling(on);
+        int fans = _hw.SetAllFans(on);
+        Info.Text = on
+            ? $"MAX chłodzenie włączone. Polityka chłodzenia: {(policy ? "aktywna" : "błąd")}. " +
+              (fans > 0 ? $"Wentylatory na 100%: {fans}." : "Ten laptop nie pozwala sterować wentylatorami – zadziałała tylko polityka systemu. Dla większego efektu obniż limit procesora.")
+            : "MAX chłodzenie wyłączone.";
+    }
+
     void Limit_Changed(object s, RoutedPropertyChangedEventArgs<double> e) =>
         LimitText.Text = $"{(int)LimitSlider.Value}%";
 
@@ -106,6 +118,7 @@ public partial class MainWindow : Window
     {
         _timer.Stop();
         if (_auto.Active) CpuLimiter.Apply(CpuLimiter.Max);
+        if (MaxBox.IsChecked == true) { CpuLimiter.SetActiveCooling(false); _hw?.SetAllFans(false); }
         foreach (var f in _touchedFans) _hw?.SetFan(f, null);
         _hw?.Dispose();
         base.OnClosed(e);

@@ -79,5 +79,22 @@ public sealed class HardwareMonitor : IDisposable
         return false;
     }
 
+    /// <summary>Ustawia wszystkie sterowalne wentylatory na 100% albo oddaje je systemowi. Zwraca liczbę zmienionych.</summary>
+    public int SetAllFans(bool max)
+    {
+        var all = new List<IHardware>();
+        foreach (var h in _pc.Hardware) Collect(h, all);
+        int n = 0;
+        foreach (var h in all)
+            foreach (var fan in h.Sensors.Where(s => s.SensorType == SensorType.Fan))
+            {
+                var ctl = FindControl(h, fan)?.Control;
+                if (ctl == null) continue;
+                if (max) ctl.SetSoftware(100); else ctl.SetDefault();
+                n++;
+            }
+        return n;
+    }
+
     public void Dispose() => _pc.Close();
 }

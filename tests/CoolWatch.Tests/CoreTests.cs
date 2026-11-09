@@ -36,4 +36,15 @@ public class CoreTests
         var a = new AutoCooler(85, 8, 70);
         Assert.Equal(60, a.Evaluate(90, 60));
     }
+
+    [Theory]
+    [InlineData(true, "SYSCOOLPOL 1")]
+    [InlineData(false, "SYSCOOLPOL 0")]
+    public void CoolingPolicyCommands(bool active, string expected)
+    {
+        var c = CpuLimiter.BuildCoolingPolicyCommands(active);
+        Assert.Contains(expected, c[0]);
+        Assert.Contains(expected, c[1]);
+        Assert.Equal("/setactive SCHEME_CURRENT", c[2]);
+    }
 }

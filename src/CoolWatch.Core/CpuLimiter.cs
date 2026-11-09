@@ -20,9 +20,25 @@ public static class CpuLimiter
         };
     }
 
-    public static bool Apply(int percent)
+    // SYSCOOLPOL: 1 = aktywne chłodzenie (najpierw wentylator), 0 = pasywne (najpierw zwolnienie procesora).
+    public static IReadOnlyList<string> BuildCoolingPolicyCommands(bool active)
     {
-        foreach (var args in BuildCommands(percent))
+        var v = active ? 1 : 0;
+        return new[]
+        {
+            $"/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR SYSCOOLPOL {v}",
+            $"/setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR SYSCOOLPOL {v}",
+            "/setactive SCHEME_CURRENT",
+        };
+    }
+
+    public static bool Apply(int percent) => Run(BuildCommands(percent));
+
+    public static bool SetActiveCooling(bool active) => Run(BuildCoolingPolicyCommands(active));
+
+    static bool Run(IEnumerable<string> commands)
+    {
+        foreach (var args in commands)
         {
             using var proc = Process.Start(new ProcessStartInfo("powercfg", args)
             {
